@@ -88,11 +88,12 @@ namespace Sky_ChatServer
                 Console.WriteLine(e);
                 return;
             }
-            string readString = Encoding.Default.GetString(callbackClient.messageData, 0, bytesRead);
+            string readString = Encoding.UTF8.GetString(callbackClient.messageData, 0, bytesRead);
             string[] messageData = readString.Split("$$#$$");
             if (messageData[1] == "UserInfo")
             {
                 AddClient(messageData[2], messageData[3], callbackClient.ipAdress);
+
             }
 
             else if (messageData[1] == "Disconnect")
@@ -103,6 +104,10 @@ namespace Sky_ChatServer
             else if (messageData[1] == "Message")
             {
                 Console.WriteLine("{0} : {1}", messageData[3], messageData[4]);
+                string returnmessage = "$$#$$Message$$#$$" + messageData[2] + "$$#$$" + messageData[3] + "$$#$$" + messageData[4] + "$$#$$Message$$#$$";
+                byte[] header = new byte[returnmessage.Length];
+                header = Encoding.UTF8.GetBytes(returnmessage);
+                callbackClient.client.GetStream().Write(header);
             }
 
             else
