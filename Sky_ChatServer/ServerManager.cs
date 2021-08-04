@@ -45,11 +45,11 @@ namespace Sky_ChatServer
         }
 
         //클라이언트 데이터 추가
-        private void AddClient(string clientName, string testType, string ipAdress)
+        private void AddClient(TcpClient client, string clientName, string testType)
         {
             foreach (ClientData clientdata in clientList)
             {
-                if (clientdata.ipAdress == ipAdress)
+                if (clientdata.client == client)
                 {
                     if(clientdata.clientName == null)
                     {
@@ -64,8 +64,11 @@ namespace Sky_ChatServer
                 }
             }
 
-
-
+            ClientData addClient = new ClientData(client);
+            addClient.clientName = clientName;
+            addClient.testType = testType;
+            clientList.Add(addClient);
+            Console.WriteLine("성공");
         }
 
         private void DeleteClient()
@@ -76,7 +79,6 @@ namespace Sky_ChatServer
         //메세지를 받아서 헤더에 맞는 작업을 진행합니다.
         private void ReceiveMesasage(IAsyncResult ar)
         {
-           Console.WriteLine("데이터 들어옴");
             int bytesRead;
             ClientData callbackClient = ar.AsyncState as ClientData;
             try
@@ -92,7 +94,7 @@ namespace Sky_ChatServer
             string[] messageData = readString.Split("$$#$$");
             if (messageData[1] == "UserInfo")
             {
-                AddClient(messageData[2], messageData[3], callbackClient.ipAdress);
+                AddClient(callbackClient.client, messageData[2], messageData[3]);
 
             }
 
@@ -103,15 +105,46 @@ namespace Sky_ChatServer
             
             else if (messageData[1] == "Message")
             {
+
                 Console.WriteLine("{0} : {1}", messageData[3], messageData[4]);
-                string returnmessage = "$$#$$Message$$#$$" + messageData[2] + "$$#$$" + messageData[3] + "$$#$$" + messageData[4] + "$$#$$Message$$#$$";
+                List<ClientData> MessageTarget = new List<ClientData>();
+                // 메시지를 보낼 대상을 결정하는 부분입니다.
+                if (messageData[2] == "All")
+                {
+                    MessageTarget = clientList;
+                }
+
+                else if (messageData[2] == "SuperVisor")
+                {
+                    foreach(ClientData clientdata in clientList)
+                    {
+                        if (clientdata.testType == "2")
+                        {
+                            MessageTarget.Add(clientdata);
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (ClientData clientdata in clientList)
+                    {
+                        if (clientdata.clientName == messageData[2])
+                        {
+                            MessageTarget.Add(clientdata);
+                        }
+                    }
+                }
+
+                //실제 메시지 전송
+                string returnmessage = "$$#$$Message$$#$$" + messageData[3] + "$$#$$" + messageData[4] + "$$#$$Message$$#$$";
                 byte[] header = new byte[returnmessage.Length];
                 header = Encoding.UTF8.GetBytes(returnmessage);
-                callbackClient.client.GetStream().Write(header);
-            }
+                foreach (ClientData targetClient in MessageTarget)
+                {
+                    targetClient.client.GetStream().Write(header);
+                }
+                //callbackClient.client.GetStream().Write(header);
 
-            else
-            {
             }
 
             callbackClient.client.GetStream().BeginRead(callbackClient.messageData, 0, callbackClient.messageData.Length, new AsyncCallback(ReceiveMesasage), callbackClient);

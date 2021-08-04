@@ -11,7 +11,6 @@ namespace Sky_ChatServer
     {
         public TcpClient client; //tcpclient
         public string clientName; //이름
-        public string ipAdress; //ip주소
         public string testType; //학생 or 감독관
         public string chattingRoom; //채팅방 이름
         public byte[] messageData; //메세지 데이터를 담을 버퍼
@@ -22,7 +21,6 @@ namespace Sky_ChatServer
         {
             client = _client;
             messageData = new byte[1024];
-            ipAdress = client.Client.LocalEndPoint.ToString();
         }
     }
 }
