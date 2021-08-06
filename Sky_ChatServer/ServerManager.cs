@@ -10,10 +10,10 @@ namespace Sky_ChatServer
 {
     class ServerManager
     {
-        List<ClientData> clientList;
+        List<ClientList> clientListData;
         public ServerManager()
         {
-            clientList = new List<ClientData>();
+            clientListData = new List<ClientList>();
             ServerStart();
         }
 
@@ -33,7 +33,7 @@ namespace Sky_ChatServer
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
-                    DeleteClient();
+                    DeleteClient(clientData);
                 }
             }
         }
@@ -45,37 +45,63 @@ namespace Sky_ChatServer
         }
 
         //클라이언트 데이터 추가
-        private void AddClient(TcpClient client, string clientName, string testType)
+        private void AddClient(TcpClient client, string clientName, string testType, string RoomName)
         {
-            foreach (ClientData clientdata in clientList)
+            if (clientListData.Count != 0)
             {
-                if (clientdata.client == client)
+                foreach (ClientList clientList in clientListData)
                 {
-                    if(clientdata.clientName == null)
+                    if (clientList.chattingRoomName == RoomName)
                     {
-                        clientdata.clientName = clientName;
+                        foreach (ClientData clientdata in clientList.clientList)
+                        {
+                            if (clientdata.client == client)
+                            {
+                                if (clientdata.clientName == null)
+                                {
+                                    clientdata.clientName = clientName;
+                                }
+                                if (clientdata.testType == null)
+                                {
+                                    clientdata.testType = testType;
+                                }
+                                Console.WriteLine("성공");
+                                return;
+                            }
+                        }
+
+                        ClientData _addClient = new ClientData(client);
+                        _addClient.clientName = clientName;
+                        _addClient.testType = testType;
+                        clientList.clientList.Add(_addClient);
+                        return;
                     }
-                    if (clientdata.testType == null)
-                    {
-                        clientdata.testType = testType;
-                    }
-                    Console.WriteLine("성공");
-                    return;
                 }
             }
-
-            ClientData addClient = new ClientData(client);
-            addClient.clientName = clientName;
-            addClient.testType = testType;
-            clientList.Add(addClient);
-            Console.WriteLine("성공");
+            ClientList AddClientList = new ClientList(RoomName);
+            clientListData.Add(AddClientList);
+            ClientData addClient = new ClientData(client, clientName, testType);
+            clientListData[clientListData.Count - 1].clientList.Add(addClient);
+            return;
         }
 
-        private void DeleteClient()
+        private void DeleteClient(ClientData clientData)
         {
-
+            foreach (ClientList clientList in clientListData)
+            {
+                if (clientList.chattingRoomName == clientData.chattingRoom)
+                {
+                    for (int i = 0; i < clientList.clientList.Count; i++)
+                    {
+                        if (clientList.clientList[i].client == clientData.client)
+                        {
+                            clientList.clientList.RemoveAt(i);
+                            break;
+                        }
+                    }
+                }
+            }
         }
-
         //메세지를 받아서 헤더에 맞는 작업을 진행합니다.
         private void ReceiveMesasage(IAsyncResult ar)
         {
@@ -88,33 +114,46 @@ namespace Sky_ChatServer
             catch (Exception e)
             {
                 Console.WriteLine(e);
+                DeleteClient(callbackClient);
                 return;
             }
             string readString = Encoding.UTF8.GetString(callbackClient.messageData, 0, bytesRead);
             string[] messageData = readString.Split("$$#$$");
             if (messageData[1] == "UserInfo")
             {
-                AddClient(callbackClient.client, messageData[2], messageData[3]);
+                AddClient(callbackClient.client, messageData[2], messageData[3], messageData[4]);
 
             }
 
             else if (messageData[1] == "Disconnect")
             {
-                DeleteClient();
+                DeleteClient(callbackClient);
             }
             
             else if (messageData[1] == "Message")
             {
-
-                Console.WriteLine("{0} : {1}", messageData[3], messageData[4]);
+                List<ClientData> clientList = new List<ClientData>();
+                foreach (ClientList clientlist in clientListData)
+                {
+                    if (clientlist.chattingRoomName == messageData[2])
+                    {
+                        clientList = clientlist.clientList;
+                        break;
+                    }
+                }
+                Console.WriteLine("{0} : {1}", messageData[4], messageData[5]);
                 List<ClientData> MessageTarget = new List<ClientData>();
                 // 메시지를 보낼 대상을 결정하는 부분입니다.
-                if (messageData[2] == "All")
+
+                if (messageData[3] == "All")
                 {
-                    MessageTarget = clientList;
+                    foreach (ClientData clientdata in clientList)
+                    {
+                        MessageTarget.Add(clientdata);
+                    }
                 }
 
-                else if (messageData[2] == "SuperVisor")
+                else if (messageData[3] == "SuperVisor")
                 {
                     foreach(ClientData clientdata in clientList)
                     {
@@ -136,7 +175,7 @@ namespace Sky_ChatServer
                 }
 
                 //실제 메시지 전송
-                string returnmessage = "$$#$$Message$$#$$" + messageData[3] + "$$#$$" + messageData[4] + "$$#$$Message$$#$$";
+                string returnmessage = "$$#$$Message$$#$$" + messageData[4] + "$$#$$" + messageData[5] + "$$#$$Message$$#$$";
                 byte[] header = new byte[returnmessage.Length];
                 header = Encoding.UTF8.GetBytes(returnmessage);
                 foreach (ClientData targetClient in MessageTarget)

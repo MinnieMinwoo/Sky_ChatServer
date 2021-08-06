@@ -22,5 +22,24 @@ namespace Sky_ChatServer
             client = _client;
             messageData = new byte[1024];
         }
+        public ClientData(TcpClient _client, string name, string type)
+        {
+            client = _client;
+            clientName = name;
+            testType = type;
+            messageData = new byte[1024];
+        }
+    }
+
+    class ClientList
+    {
+        public List<ClientData> clientList;
+        public string chattingRoomName;
+        public ClientList(string chatRoom)
+        {
+            chattingRoomName = chatRoom;
+            clientList = new List<ClientData>();
+        }
+
     }
 }
