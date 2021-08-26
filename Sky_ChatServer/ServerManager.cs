@@ -43,7 +43,28 @@ namespace Sky_ChatServer
         //클라이언트 연결 확인
         private void CheckConnect()
         {
-
+            //1초에 한번씩 모든 클라이언트에 더미 메시지를 전송합니다. 이 때 오류가 발생하면 클라이언트와 연결이 해제합니다.
+            string returnmessage = "$$#$$Dummy$$#$$" + "$$#$$Dummy$$#$$";
+            byte[] header = new byte[returnmessage.Length];
+            header = Encoding.UTF8.GetBytes(returnmessage);
+            foreach (ClientList clientListData in clientListData)
+            {
+                foreach (ClientData targetClient in clientListData.clientList)
+                {
+                    try
+                    {
+                        targetClient.client.GetStream().Write(header);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                        Thread delClient = new Thread(DeleteClient);
+                        delClient.Start(targetClient.client);
+                        continue;
+                    }
+                }
+            }
+            Thread.Sleep(1000);
         }
 
         //클라이언트 데이터 추가
